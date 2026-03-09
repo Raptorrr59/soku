@@ -1,0 +1,15 @@
+# Rust
+target/
+**/*.rs.bk
+
+# Node/React
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Wasm
+soku_ui/public/wasm/
+
+# OS
+.DS_Store
