@@ -4,7 +4,7 @@ all: wasm ui
 
 wasm:
 	@echo "Building Wasm Engine..."
-	cd soku_wasm && wasm-pack build --target web --out-dir ../soku_ui/public/wasm
+	cd soku_wasm && wasm-pack build --target web --out-dir ../soku_ui/src/wasm
 
 ui:
 	@echo "Building Frontend..."
@@ -15,4 +15,4 @@ clean:
 	cd soku_core && cargo clean
 	cd soku_wasm && cargo clean
 	rm -rf soku_ui/dist
-	rm -rf soku_ui/public/wasm
+	rm -rf soku_ui/src/wasm
