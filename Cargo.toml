@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "soku_core",
+    "soku_wasm",
+]
+resolver = "2"
