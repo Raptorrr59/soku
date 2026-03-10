@@ -34,30 +34,46 @@ function App() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (renderData) {
-        // Read the dummy data we pushed in Rust:
-        // [ID, Type, X, Y, Width, Height]
-        // Currently, we only have 1 shape, so 6 floats.
+        // Read the packed data from Rust
+        // Stride is 6 floats: [ID, Type, X, Y, Width/Radius, Height/Padding]
         for (let i = 0; i < renderData.length; i += 6) {
           const id = renderData[i];
           const type = renderData[i + 1];
           const x = renderData[i + 2];
           const y = renderData[i + 3];
-          const width = renderData[i + 4];
-          const height = renderData[i + 5];
+          const w_r = renderData[i + 4];
+          const h_pad = renderData[i + 5];
+
+          // Dynamic colors based on ID
+          const colors = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
+          const color = colors[Math.floor(id) % colors.length] || '#3b82f6';
+          
+          ctx.fillStyle = color;
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 3;
 
           if (type === 1.0) {
             // Rectangle
-            ctx.fillStyle = '#3b82f6'; // Blue
-            ctx.fillRect(x, y, width, height);
-            
-            ctx.strokeStyle = '#1e3a8a';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, width, height);
+            ctx.beginPath();
+            ctx.rect(x, y, w_r, h_pad);
+            ctx.fill();
+            ctx.stroke();
 
             // Draw ID for debug
             ctx.fillStyle = 'white';
             ctx.font = '16px sans-serif';
-            ctx.fillText(`Shape ID: ${id}`, x + 10, y + 20);
+            ctx.fillText(`Rect ID: ${id}`, x + 10, y + 20);
+          } else if (type === 2.0) {
+            // Circle
+            ctx.beginPath();
+            ctx.arc(x, y, w_r, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw ID for debug
+            ctx.fillStyle = 'white';
+            ctx.font = '16px sans-serif';
+            ctx.fillText(`Circ ID: ${id}`, x - 20, y + 5);
           }
         }
       }

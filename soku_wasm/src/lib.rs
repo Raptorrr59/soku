@@ -25,19 +25,7 @@ impl SokuEngine {
 
     /// Triggers an update of the internal render buffer based on the current ECS state.
     pub fn update_render_buffer(&mut self) {
-        self.render_buffer.clear();
-        
-        // TODO: In the future, this will iterate over soku_core's ECS World 
-        // using queries (e.g. Query<(&Transform, &Renderable)>) and populate the buffer.
-        
-        // For now, let's push a dummy shape so we can test the bridge:
-        // Format: [ID (0), Type (Rect=1), X, Y, Width, Height]
-        self.render_buffer.push(0.0);    // ID
-        self.render_buffer.push(1.0);    // Type (1 = Rectangle)
-        self.render_buffer.push(100.0);  // X
-        self.render_buffer.push(150.0);  // Y
-        self.render_buffer.push(200.0);  // Width
-        self.render_buffer.push(100.0);  // Height
+        soku_core::systems::render::pack_render_buffer(&self.core.world, &mut self.render_buffer);
     }
 
     /// Returns the raw memory address of the render buffer.
