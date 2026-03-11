@@ -2,7 +2,7 @@ import init, { SokuEngine } from "../wasm/soku_wasm";
 
 export class SokuClient {
   private engine: SokuEngine | null = null;
-  private wasmMemory: WebAssembly.Memory | null = null;
+  private wasmModule: any = null;
   private isInitialized = false;
 
   async init(): Promise<void> {
@@ -10,7 +10,9 @@ export class SokuClient {
     
     // Initialize the Wasm module
     const wasm = await init();
-    this.wasmMemory = wasm.memory;
+    // We store the whole wasm object so we can access wasm.memory.buffer 
+    // which updates dynamically if memory grows.
+    this.wasmModule = wasm;
     this.engine = new SokuEngine();
     this.isInitialized = true;
     
@@ -19,7 +21,9 @@ export class SokuClient {
 
   update(): void {
     if (!this.engine) return;
-    // Tell Rust to populate the render buffer
+    // Single point of entry for mutation
+    this.engine.step();
+    // Single point of entry for buffer packing
     this.engine.update_render_buffer();
   }
 
@@ -31,8 +35,12 @@ export class SokuClient {
     this.engine?.handle_mouse_down();
   }
 
+  handleMouseUp(): void {
+    this.engine?.handle_mouse_up();
+  }
+
   getRenderData(): Float32Array | null {
-    if (!this.engine || !this.wasmMemory) return null;
+    if (!this.engine || !this.wasmModule) return null;
 
     const ptr = this.engine.render_buffer_ptr();
     const len = this.engine.render_buffer_len();
@@ -40,8 +48,8 @@ export class SokuClient {
     if (len === 0) return null;
 
     // Zero-Copy Memory Strategy:
-    // Create a TypedArray view directly over the WebAssembly memory buffer.
-    // ptr is a byte offset, so divide by 4 because each f32 is 4 bytes.
-    return new Float32Array(this.wasmMemory.buffer, ptr, len);
+    // ALWAYS access the buffer through this.wasmModule.memory.buffer
+    // This ensures that if the memory grows, we get the new buffer instead of a detached one.
+    return new Float32Array(this.wasmModule.memory.buffer, ptr, len);
   }
 }

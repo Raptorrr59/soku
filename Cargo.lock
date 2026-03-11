@@ -193,6 +193,7 @@ name = "soku_wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "once_cell",
  "soku_core",
  "wasm-bindgen",
 ]

@@ -1,11 +1,26 @@
 use wasm_bindgen::prelude::*;
 use soku_core::SokuEngine as CoreEngine;
 
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+struct GlobalInput {
+    mouse_x: f32,
+    mouse_y: f32,
+    mouse_down: bool,
+    mouse_up: bool,
+}
+
+static INPUT: Lazy<Mutex<GlobalInput>> = Lazy::new(|| Mutex::new(GlobalInput {
+    mouse_x: 0.0,
+    mouse_y: 0.0,
+    mouse_down: false,
+    mouse_up: false,
+}));
+
 #[wasm_bindgen]
 pub struct SokuEngine {
     core: CoreEngine,
-    /// A flat buffer of f32 values representing the render state.
-    /// Stride (elements per shape): [ID, Type, X, Y, Width, Height, ...]
     render_buffer: Vec<f32>,
 }
 
@@ -13,7 +28,6 @@ pub struct SokuEngine {
 impl SokuEngine {
     #[wasm_bindgen(constructor)]
     pub fn new() -> SokuEngine {
-        // Set up panic hook for better error messages in the browser console
         #[cfg(feature = "console_error_panic_hook")]
         console_error_panic_hook::set_once();
 
@@ -23,27 +37,53 @@ impl SokuEngine {
         }
     }
 
-    /// Triggers an update of the internal render buffer based on the current ECS state.
+    pub fn step(&mut self) {
+        // Pull input from global state safely
+        if let Ok(mut input) = INPUT.lock() {
+            self.core.handle_mouse_move(input.mouse_x, input.mouse_y);
+            
+            if input.mouse_down {
+                self.core.handle_mouse_down();
+                input.mouse_down = false;
+            }
+            
+            if input.mouse_up {
+                self.core.handle_mouse_up();
+                input.mouse_up = false;
+            }
+        }
+        self.core.step();
+    }
+
     pub fn update_render_buffer(&mut self) {
         soku_core::systems::render::pack_render_buffer(&self.core.world, &mut self.render_buffer);
     }
 
-    /// Returns the raw memory address of the render buffer.
+    pub fn handle_mouse_move(&self, x: f32, y: f32) {
+        if let Ok(mut input) = INPUT.lock() {
+            input.mouse_x = x;
+            input.mouse_y = y;
+        }
+    }
+
+    pub fn handle_mouse_down(&self) {
+        if let Ok(mut input) = INPUT.lock() {
+            input.mouse_down = true;
+        }
+    }
+
+    pub fn handle_mouse_up(&self) {
+        if let Ok(mut input) = INPUT.lock() {
+            input.mouse_up = true;
+        }
+    }
+
     pub fn render_buffer_ptr(&self) -> *const f32 {
         self.render_buffer.as_ptr()
     }
 
-    /// Returns the number of f32 elements in the render buffer.
     pub fn render_buffer_len(&self) -> usize {
         self.render_buffer.len()
-    }
-
-    pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
-        self.core.handle_mouse_move(x, y);
-    }
-
-    pub fn handle_mouse_down(&mut self) {
-        self.core.handle_mouse_down();
     }
 }
 
