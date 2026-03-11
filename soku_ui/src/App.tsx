@@ -35,45 +35,40 @@ function App() {
 
       if (renderData) {
         // Read the packed data from Rust
-        // Stride is 6 floats: [ID, Type, X, Y, Width/Radius, Height/Padding]
+        // Stride is 6 floats: [ID, TypeVal, X, Y, Width/Radius, Height/Padding]
         for (let i = 0; i < renderData.length; i += 6) {
           const id = renderData[i];
-          const type = renderData[i + 1];
+          const typeVal = renderData[i + 1];
           const x = renderData[i + 2];
           const y = renderData[i + 3];
           const w_r = renderData[i + 4];
           const h_pad = renderData[i + 5];
+
+          // Unpack type and flags
+          const type = Math.floor(typeVal);
+          const isHovered = (typeVal % 1.0) >= 0.09 && (typeVal % 1.0) < 0.15;
+          const isSelected = (typeVal % 1.0) >= 0.19;
 
           // Dynamic colors based on ID
           const colors = ['#3b82f6', '#ec4899', '#10b981', '#f59e0b', '#8b5cf6'];
           const color = colors[Math.floor(id) % colors.length] || '#3b82f6';
           
           ctx.fillStyle = color;
-          ctx.strokeStyle = '#cbd5e1';
-          ctx.lineWidth = 3;
+          ctx.strokeStyle = isSelected ? '#ffffff' : (isHovered ? '#94a3b8' : '#475569');
+          ctx.lineWidth = isSelected ? 5 : (isHovered ? 3 : 1.5);
 
-          if (type === 1.0) {
+          if (type === 1) {
             // Rectangle
             ctx.beginPath();
             ctx.rect(x, y, w_r, h_pad);
             ctx.fill();
             ctx.stroke();
-
-            // Draw ID for debug
-            ctx.fillStyle = 'white';
-            ctx.font = '16px sans-serif';
-            ctx.fillText(`Rect ID: ${id}`, x + 10, y + 20);
-          } else if (type === 2.0) {
+          } else if (type === 2) {
             // Circle
             ctx.beginPath();
             ctx.arc(x, y, w_r, 0, 2 * Math.PI);
             ctx.fill();
             ctx.stroke();
-
-            // Draw ID for debug
-            ctx.fillStyle = 'white';
-            ctx.font = '16px sans-serif';
-            ctx.fillText(`Circ ID: ${id}`, x - 20, y + 5);
           }
         }
       }
@@ -81,10 +76,26 @@ function App() {
       animationFrameId = requestAnimationFrame(renderLoop);
     };
 
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      client.handleMouseMove(x, y);
+    };
+
+    const handleMouseDown = () => {
+      client.handleMouseDown();
+    };
+
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mousedown', handleMouseDown);
+
     renderLoop();
 
     return () => {
       cancelAnimationFrame(animationFrameId);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mousedown', handleMouseDown);
     };
   }, [isReady, client]);
 

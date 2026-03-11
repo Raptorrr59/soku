@@ -37,6 +37,14 @@ impl SokuEngine {
     pub fn render_buffer_len(&self) -> usize {
         self.render_buffer.len()
     }
+
+    pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
+        self.core.handle_mouse_move(x, y);
+    }
+
+    pub fn handle_mouse_down(&mut self) {
+        self.core.handle_mouse_down();
+    }
 }
 
 impl Default for SokuEngine {

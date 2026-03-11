@@ -23,6 +23,14 @@ export class SokuClient {
     this.engine.update_render_buffer();
   }
 
+  handleMouseMove(x: number, y: number): void {
+    this.engine?.handle_mouse_move(x, y);
+  }
+
+  handleMouseDown(): void {
+    this.engine?.handle_mouse_down();
+  }
+
   getRenderData(): Float32Array | null {
     if (!this.engine || !this.wasmMemory) return null;
 
