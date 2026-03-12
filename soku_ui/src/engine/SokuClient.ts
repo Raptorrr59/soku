@@ -1,55 +1,94 @@
-import init, { SokuEngine } from "../wasm/soku_wasm";
+import init, { 
+  soku_init, 
+  soku_step, 
+  soku_update_render_buffer, 
+  soku_spawn_shape, 
+  soku_delete_selected, 
+  soku_render_buffer_ptr, 
+  soku_render_buffer_len 
+} from "../wasm/soku_wasm";
 
 export class SokuClient {
-  private engine: SokuEngine | null = null;
   private wasmModule: any = null;
   private isInitialized = false;
 
+  // Local input state (JS-only)
+  private mouseX = 0;
+  private mouseY = 0;
+  private isMouseDown = false;
+  private isMouseUp = false;
+
+  // Action Queue (JS-only)
+  private pendingSpawn: { type: number, x: number, y: number } | null = null;
+  private pendingDelete = false;
+
   async init(): Promise<void> {
     if (this.isInitialized) return;
-    
-    // Initialize the Wasm module
     const wasm = await init();
-    // We store the whole wasm object so we can access wasm.memory.buffer 
-    // which updates dynamically if memory grows.
     this.wasmModule = wasm;
-    this.engine = new SokuEngine();
-    this.isInitialized = true;
     
+    // Call global init
+    soku_init();
+    
+    this.isInitialized = true;
     console.log("Soku Wasm Engine Initialized successfully.");
   }
 
   update(): void {
-    if (!this.engine) return;
-    // Single point of entry for mutation
-    this.engine.step();
-    // Single point of entry for buffer packing
-    this.engine.update_render_buffer();
+    if (!this.isInitialized) return;
+    
+    // 1. Process pending structural changes
+    if (this.pendingSpawn) {
+      soku_spawn_shape(this.pendingSpawn.type, this.pendingSpawn.x, this.pendingSpawn.y);
+      this.pendingSpawn = null;
+    }
+
+    if (this.pendingDelete) {
+      soku_delete_selected();
+      this.pendingDelete = false;
+    }
+
+    // 2. Pass JS state to Rust via top-level function
+    soku_step(this.mouseX, this.mouseY, this.isMouseDown, this.isMouseUp);
+    
+    // Reset triggers
+    this.isMouseDown = false;
+    this.isMouseUp = false;
+
+    // 3. Update the render buffer
+    soku_update_render_buffer();
   }
 
   handleMouseMove(x: number, y: number): void {
-    this.engine?.handle_mouse_move(x, y);
+    this.mouseX = x;
+    this.mouseY = y;
   }
 
   handleMouseDown(): void {
-    this.engine?.handle_mouse_down();
+    this.isMouseDown = true;
   }
 
   handleMouseUp(): void {
-    this.engine?.handle_mouse_up();
+    this.isMouseUp = true;
+  }
+
+  spawnShape(type: number, x: number, y: number): void {
+    this.pendingSpawn = { type, x, y };
+  }
+
+  deleteSelected(): void {
+    this.pendingDelete = true;
   }
 
   getRenderData(): Float32Array | null {
-    if (!this.engine || !this.wasmModule) return null;
-
-    const ptr = this.engine.render_buffer_ptr();
-    const len = this.engine.render_buffer_len();
-
+    if (!this.isInitialized || !this.wasmModule) return null;
+    
+    // Read from the static RENDER_BUFFER via top-level functions
+    const ptr = soku_render_buffer_ptr();
+    const len = soku_render_buffer_len();
+    
     if (len === 0) return null;
-
-    // Zero-Copy Memory Strategy:
-    // ALWAYS access the buffer through this.wasmModule.memory.buffer
-    // This ensures that if the memory grows, we get the new buffer instead of a detached one.
-    return new Float32Array(this.wasmModule.memory.buffer, ptr, len);
+    
+    return new Float32Array(this.wasmModule.memory.buffer, ptr as number, len);
   }
 }

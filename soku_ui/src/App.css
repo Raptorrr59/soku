@@ -48,6 +48,63 @@
   padding: 2rem;
 }
 
+.canvas-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.toolbar {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  background-color: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 0.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  display: flex;
+  gap: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.tool-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tool-btn:hover {
+  background-color: rgba(51, 65, 85, 0.5);
+  color: white;
+}
+
+.tool-btn:active {
+  transform: scale(0.9);
+}
+
+.delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.tool-divider {
+  width: 1px;
+  height: 1.5rem;
+  background-color: #334155;
+  align-self: center;
+  margin: 0 0.25rem;
+}
+
 .main-canvas {
   background-color: #1e293b;
   border-radius: 1.5rem;

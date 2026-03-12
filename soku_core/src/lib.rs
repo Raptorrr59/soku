@@ -3,29 +3,21 @@ pub mod components;
 pub mod systems;
 
 use hecs::{World, Entity};
-use commands::HistoryManager;
-use components::{Shape, Transform, Selectable};
+use crate::components::{Shape, Transform, Selectable};
 
 /// The central state of the Soku engine
 pub struct SokuEngine {
-    pub world: World,
-    pub history: HistoryManager,
-    
-    // Internal Input State
+    world: World,
     mouse_x: f32,
     mouse_y: f32,
-    next_mouse_pos: Option<(f32, f32)>,
-    mouse_down_triggered: bool,
-    mouse_up_triggered: bool,
-    
-    pub drag_target: Option<Entity>,
+    drag_target: Option<Entity>,
 }
 
 impl SokuEngine {
     pub fn new() -> Self {
         let mut world = World::new();
         
-        // Spawn some initial shapes
+        // Initial shapes
         world.spawn((
             Transform { x: 100.0, y: 150.0, rotation: 0.0, scale_x: 1.0, scale_y: 1.0 },
             Shape::Rectangle { width: 200.0, height: 100.0 },
@@ -37,95 +29,79 @@ impl SokuEngine {
             Shape::Circle { radius: 80.0 },
             Selectable { is_selected: false, is_hovered: false },
         ));
-        
-        world.spawn((
-            Transform { x: 600.0, y: 100.0, rotation: 0.0, scale_x: 1.0, scale_y: 1.0 },
-            Shape::Rectangle { width: 120.0, height: 120.0 },
-            Selectable { is_selected: false, is_hovered: false },
-        ));
-
-        world.spawn((
-            Transform { x: 200.0, y: 400.0, rotation: 0.0, scale_x: 1.0, scale_y: 1.0 },
-            Shape::Circle { radius: 50.0 },
-            Selectable { is_selected: false, is_hovered: false },
-        ));
 
         Self {
             world,
-            history: HistoryManager::new(),
             mouse_x: 0.0,
             mouse_y: 0.0,
-            next_mouse_pos: None,
-            mouse_down_triggered: false,
-            mouse_up_triggered: false,
             drag_target: None,
         }
     }
 
-    /// The single source of truth for engine updates. 
-    /// Processes all queued inputs and updates the ECS world.
-    pub fn step(&mut self) {
-        // 1. Process Mouse Move
-        if let Some((nx, ny)) = self.next_mouse_pos.take() {
-            let dx = nx - self.mouse_x;
-            let dy = ny - self.mouse_y;
-            self.mouse_x = nx;
-            self.mouse_y = ny;
+    pub fn step(&mut self, mouse_x: f32, mouse_y: f32, mouse_down: bool, mouse_up: bool) {
+        let dx = mouse_x - self.mouse_x;
+        let dy = mouse_y - self.mouse_y;
+        self.mouse_x = mouse_x;
+        self.mouse_y = mouse_y;
 
-            if let Some(entity) = self.drag_target {
-                if let Ok(mut transform) = self.world.get::<&mut Transform>(entity) {
-                    transform.x += dx;
-                    transform.y += dy;
-                }
-            } else {
-                systems::input::update_hover_system(&mut self.world, nx, ny);
-            }
-        }
-
-        // 2. Process Mouse Down
-        if self.mouse_down_triggered {
-            self.mouse_down_triggered = false;
-            
-            // Apply selection logic
-            systems::input::update_selection_system(&mut self.world);
-            
-            // Find drag target in a separate borrow
-            self.drag_target = self.world.query_mut::<&Selectable>()
-                .into_iter()
-                .find(|(_, s)| s.is_hovered)
-                .map(|(e, _)| e);
-        }
-
-        // 3. Process Mouse Up
-        if self.mouse_up_triggered {
-            self.mouse_up_triggered = false;
+        // 1. Handle Mouse Up (release drag)
+        if mouse_up {
             self.drag_target = None;
         }
+
+        // 2. Handle Mouse Down (start drag & selection)
+        if mouse_down {
+            systems::input::update_selection_system(&mut self.world);
+            
+            // Scoped find to drop borrow
+            let target = {
+                self.world.query_mut::<&Selectable>()
+                    .into_iter()
+                    .find(|(_, s)| s.is_hovered)
+                    .map(|(e, _)| e)
+            };
+            self.drag_target = target;
+        }
+
+        // 3. Handle Dragging or Hovering
+        if let Some(entity) = self.drag_target {
+            if let Ok(mut transform) = self.world.get::<&mut Transform>(entity) {
+                transform.x += dx;
+                transform.y += dy;
+            }
+        } else {
+            systems::input::update_hover_system(&mut self.world, self.mouse_x, self.mouse_y);
+        }
     }
 
-    // These methods now ONLY update internal state, 
-    // they never touch the World directly. This prevents aliasing.
-    pub fn handle_mouse_move(&mut self, x: f32, y: f32) {
-        self.next_mouse_pos = Some((x, y));
+    pub fn spawn_shape(&mut self, shape_type: u8, x: f32, y: f32) {
+        let shape = match shape_type {
+            1 => Shape::Rectangle { width: 100.0, height: 100.0 },
+            2 => Shape::Circle { radius: 50.0 },
+            _ => Shape::Rectangle { width: 50.0, height: 50.0 },
+        };
+
+        self.world.spawn((
+            Transform { x, y, rotation: 0.0, scale_x: 1.0, scale_y: 1.0 },
+            shape,
+            Selectable { is_selected: false, is_hovered: false },
+        ));
     }
 
-    pub fn handle_mouse_down(&mut self) {
-        self.mouse_down_triggered = true;
+    pub fn delete_selected(&mut self) {
+        let to_delete: Vec<Entity> = self.world.query::<&Selectable>()
+            .iter()
+            .filter(|(_, s)| s.is_selected)
+            .map(|(e, _)| e)
+            .collect();
+        
+        for entity in to_delete {
+            let _ = self.world.despawn(entity);
+        }
+        self.drag_target = None;
     }
 
-    pub fn handle_mouse_up(&mut self) {
-        self.mouse_up_triggered = true;
-    }
-
-
-
-    pub fn apply_command(&mut self, command: Box<dyn commands::Command>) {
-        self.history.apply(&mut self.world, command);
-    }
-}
-
-impl Default for SokuEngine {
-    fn default() -> Self {
-        Self::new()
+    pub fn render(&self, buffer: &mut Vec<f32>) {
+        systems::render::pack_render_buffer(&self.world, buffer);
     }
 }
