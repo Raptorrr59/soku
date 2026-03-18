@@ -13,9 +13,3 @@ pub struct Renderable {
     pub stroke_width: f32,
     pub fill: bool,
 }
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Selectable {
-    pub is_selected: bool,
-    pub is_hovered: bool,
-}

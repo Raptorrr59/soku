@@ -3,7 +3,7 @@ pub mod components;
 pub mod systems;
 
 use hecs::{World, Entity};
-use crate::components::{Shape, Transform, Selectable};
+use crate::components::{Shape, Transform, Selectable, Camera};
 
 /// The central state of the Soku engine
 pub struct SokuEngine {
@@ -11,6 +11,7 @@ pub struct SokuEngine {
     mouse_x: f32,
     mouse_y: f32,
     drag_target: Option<Entity>,
+    camera: Entity,
 }
 
 impl SokuEngine {
@@ -30,17 +31,31 @@ impl SokuEngine {
             Selectable { is_selected: false, is_hovered: false },
         ));
 
+        // Create camera entity
+        let camera = world.spawn((
+            Camera { x: 0.0, y: 0.0, zoom: 1.0 },
+        ));
+
         Self {
             world,
             mouse_x: 0.0,
             mouse_y: 0.0,
             drag_target: None,
+            camera,
         }
     }
 
     pub fn step(&mut self, mouse_x: f32, mouse_y: f32, mouse_down: bool, mouse_up: bool) {
-        let dx = mouse_x - self.mouse_x;
-        let dy = mouse_y - self.mouse_y;
+        let camera = self.get_camera();
+        
+        // Transform screen space to world space for the engine's internal logic
+        let world_mouse_x = (mouse_x / camera.zoom) + camera.x;
+        let world_mouse_y = (mouse_y / camera.zoom) + camera.y;
+
+        // Current world-space movement delta
+        let dx = (mouse_x - self.mouse_x) / camera.zoom;
+        let dy = (mouse_y - self.mouse_y) / camera.zoom;
+        
         self.mouse_x = mouse_x;
         self.mouse_y = mouse_y;
 
@@ -70,7 +85,7 @@ impl SokuEngine {
                 transform.y += dy;
             }
         } else {
-            systems::input::update_hover_system(&mut self.world, self.mouse_x, self.mouse_y);
+            systems::input::update_hover_system(&mut self.world, world_mouse_x, world_mouse_y);
         }
     }
 
@@ -101,7 +116,24 @@ impl SokuEngine {
         self.drag_target = None;
     }
 
+    pub fn move_camera(&mut self, dx: f32, dy: f32) {
+        if let Ok(mut camera) = self.world.get::<&mut Camera>(self.camera) {
+            camera.x += dx;
+            camera.y += dy;
+        }
+    }
+
+    pub fn zoom_camera(&mut self, delta: f32) {
+        if let Ok(mut camera) = self.world.get::<&mut Camera>(self.camera) {
+            camera.zoom *= delta;
+        }
+    }
+
     pub fn render(&self, buffer: &mut Vec<f32>) {
         systems::render::pack_render_buffer(&self.world, buffer);
+    }
+
+    pub fn get_camera(&self) -> Camera {
+        *self.world.get::<&Camera>(self.camera).unwrap()
     }
 }

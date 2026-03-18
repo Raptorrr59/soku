@@ -32,8 +32,14 @@ function App() {
       try {
         client.update();
         const renderData = client.getRenderData();
+        const camera = client.getCamera();
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Apply Camera Transform
+        ctx.save();
+        ctx.scale(camera.zoom, camera.zoom);
+        ctx.translate(-camera.x, -camera.y);
 
         if (renderData) {
           for (let i = 0; i < renderData.length; i += 6) {
@@ -70,6 +76,7 @@ function App() {
             }
           }
         }
+        ctx.restore();
       } catch (err) {
         console.error("Render loop error:", err);
         renderLoopRunning.current = false;
@@ -79,18 +86,33 @@ function App() {
       animationFrameId = requestAnimationFrame(renderLoop);
     };
 
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 0) client.handleMouseDown();
+    };
+    const handleMouseUp = () => client.handleMouseUp();
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      client.zoomCamera(delta);
+    };
+
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      client.handleMouseMove(x, y);
+      
+      if (e.buttons & 4) { // Middle mouse button
+        const camera = client.getCamera();
+        client.moveCamera(-e.movementX / camera.zoom, -e.movementY / camera.zoom);
+      } else {
+        client.handleMouseMove(x, y);
+      }
     };
-
-    const handleMouseDown = () => client.handleMouseDown();
-    const handleMouseUp = () => client.handleMouseUp();
 
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('mouseup', handleMouseUp);
 
     renderLoop();
@@ -100,6 +122,7 @@ function App() {
       cancelAnimationFrame(animationFrameId);
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('wheel', handleWheel);
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isReady, client]);
@@ -119,14 +142,20 @@ function App() {
             <div className="toolbar">
               <button 
                 className="tool-btn" 
-                onClick={() => client.spawnShape(1, 50, 50)}
+                onClick={() => {
+                  const camera = client.getCamera();
+                  client.spawnShape(1, (50 / camera.zoom) + camera.x, (50 / camera.zoom) + camera.y);
+                }}
                 title="Add Rectangle"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
               </button>
               <button 
                 className="tool-btn" 
-                onClick={() => client.spawnShape(2, 100, 100)}
+                onClick={() => {
+                  const camera = client.getCamera();
+                  client.spawnShape(2, (100 / camera.zoom) + camera.x, (100 / camera.zoom) + camera.y);
+                }}
                 title="Add Circle"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/></svg>

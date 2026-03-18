@@ -46,6 +46,47 @@ pub fn soku_delete_selected() {
 }
 
 #[wasm_bindgen]
+pub fn soku_move_camera(dx: f32, dy: f32) {
+    if let Ok(mut engine) = ENGINE.lock() {
+        engine.move_camera(dx, dy);
+    }
+}
+
+#[wasm_bindgen]
+pub fn soku_zoom_camera(delta: f32) {
+    if let Ok(mut engine) = ENGINE.lock() {
+        engine.zoom_camera(delta);
+    }
+}
+
+#[wasm_bindgen]
+pub fn soku_get_camera_x() -> f32 {
+    if let Ok(engine) = ENGINE.lock() {
+        engine.get_camera().x
+    } else {
+        0.0
+    }
+}
+
+#[wasm_bindgen]
+pub fn soku_get_camera_y() -> f32 {
+    if let Ok(engine) = ENGINE.lock() {
+        engine.get_camera().y
+    } else {
+        0.0
+    }
+}
+
+#[wasm_bindgen]
+pub fn soku_get_camera_zoom() -> f32 {
+    if let Ok(engine) = ENGINE.lock() {
+        engine.get_camera().zoom
+    } else {
+        1.0
+    }
+}
+
+#[wasm_bindgen]
 pub fn soku_render_buffer_ptr() -> *const f32 {
     if let Ok(buffer) = RENDER_BUFFER.lock() {
         buffer.as_ptr()
