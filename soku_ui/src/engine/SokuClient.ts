@@ -4,6 +4,9 @@ import init, {
   soku_update_render_buffer, 
   soku_spawn_shape, 
   soku_delete_selected, 
+  soku_update_selected_color,
+  soku_update_selected_zindex,
+  soku_resize_selected,
   soku_move_camera,
   soku_zoom_camera,
   soku_get_camera_x,
@@ -26,6 +29,9 @@ export class SokuClient {
   // Action Queue (JS-only)
   private pendingSpawn: { type: number, x: number, y: number } | null = null;
   private pendingDelete = false;
+  private pendingColorUpdate: string | null = null;
+  private pendingZIndexUpdate: number | null = null;
+  private pendingResize: number | null = null;
 
   async init(): Promise<void> {
     if (this.isInitialized) return;
@@ -39,7 +45,7 @@ export class SokuClient {
     console.log("Soku Wasm Engine Initialized successfully.");
   }
 
-  update(): void {
+  update(minX: number = -10000, minY: number = -10000, maxX: number = 10000, maxY: number = 10000): void {
     if (!this.isInitialized) return;
     
     // 1. Process pending structural changes
@@ -53,6 +59,21 @@ export class SokuClient {
       this.pendingDelete = false;
     }
 
+    if (this.pendingColorUpdate) {
+      soku_update_selected_color(this.pendingColorUpdate);
+      this.pendingColorUpdate = null;
+    }
+
+    if (this.pendingZIndexUpdate !== null) {
+      soku_update_selected_zindex(this.pendingZIndexUpdate);
+      this.pendingZIndexUpdate = null;
+    }
+
+    if (this.pendingResize !== null) {
+      soku_resize_selected(this.pendingResize);
+      this.pendingResize = null;
+    }
+
     // 2. Pass JS state to Rust via top-level function
     soku_step(this.mouseX, this.mouseY, this.isMouseDown, this.isMouseUp);
     
@@ -60,8 +81,8 @@ export class SokuClient {
     this.isMouseDown = false;
     this.isMouseUp = false;
 
-    // 3. Update the render buffer
-    soku_update_render_buffer();
+    // 3. Update the render buffer with viewport culling
+    soku_update_render_buffer(minX, minY, maxX, maxY);
   }
 
   handleMouseMove(x: number, y: number): void {
@@ -99,6 +120,18 @@ export class SokuClient {
 
   deleteSelected(): void {
     this.pendingDelete = true;
+  }
+
+  updateSelectedColor(hex: string): void {
+    this.pendingColorUpdate = hex;
+  }
+
+  updateSelectedZIndex(delta: number): void {
+    this.pendingZIndexUpdate = delta;
+  }
+
+  resizeSelected(factor: number): void {
+    this.pendingResize = factor;
   }
 
   getRenderData(): Float32Array | null {

@@ -25,9 +25,9 @@ pub fn soku_step(mouse_x: f32, mouse_y: f32, mouse_down: bool, mouse_up: bool) {
 }
 
 #[wasm_bindgen]
-pub fn soku_update_render_buffer() {
+pub fn soku_update_render_buffer(min_x: f32, min_y: f32, max_x: f32, max_y: f32) {
     if let (Ok(engine), Ok(mut buffer)) = (ENGINE.lock(), RENDER_BUFFER.lock()) {
-        engine.render(&mut buffer);
+        engine.render(&mut buffer, min_x, min_y, max_x, max_y);
     }
 }
 
@@ -35,6 +35,27 @@ pub fn soku_update_render_buffer() {
 pub fn soku_spawn_shape(shape_type: u8, x: f32, y: f32) {
     if let Ok(mut engine) = ENGINE.lock() {
         engine.spawn_shape(shape_type, x, y);
+    }
+}
+
+#[wasm_bindgen]
+pub fn soku_update_selected_color(color_hex: String) {
+    if let Ok(mut engine) = ENGINE.lock() {
+        engine.update_selected_color(&color_hex);
+    }
+}
+
+#[wasm_bindgen]
+pub fn soku_update_selected_zindex(delta: f32) {
+    if let Ok(mut engine) = ENGINE.lock() {
+        engine.update_selected_zindex(delta);
+    }
+}
+
+#[wasm_bindgen]
+pub fn soku_resize_selected(factor: f32) {
+    if let Ok(mut engine) = ENGINE.lock() {
+        engine.resize_selected(factor);
     }
 }
 
