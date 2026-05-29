@@ -102,8 +102,8 @@ export class SokuClient {
     soku_move_camera(dx, dy);
   }
 
-  zoomCamera(delta: number): void {
-    soku_zoom_camera(delta);
+  zoomCamera(delta: number, mouseX: number = 0, mouseY: number = 0): void {
+    soku_zoom_camera(delta, mouseX, mouseY);
   }
 
   getCamera(): { x: number, y: number, zoom: number } {

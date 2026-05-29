@@ -74,9 +74,9 @@ pub fn soku_move_camera(dx: f32, dy: f32) {
 }
 
 #[wasm_bindgen]
-pub fn soku_zoom_camera(delta: f32) {
+pub fn soku_zoom_camera(delta: f32, mouse_x: f32, mouse_y: f32) {
     if let Ok(mut engine) = ENGINE.lock() {
-        engine.zoom_camera(delta);
+        engine.zoom_camera(delta, mouse_x, mouse_y);
     }
 }
 

@@ -417,9 +417,13 @@ impl SokuEngine {
         }
     }
 
-    pub fn zoom_camera(&mut self, delta: f32) {
+    pub fn zoom_camera(&mut self, delta: f32, mouse_x: f32, mouse_y: f32) {
         if let Ok(mut camera) = self.world.get::<&mut Camera>(self.camera) {
-            camera.zoom *= delta;
+            let zoom_old = camera.zoom;
+            let zoom_new = zoom_old * delta;
+            camera.x += (mouse_x / zoom_old) - (mouse_x / zoom_new);
+            camera.y += (mouse_y / zoom_old) - (mouse_y / zoom_new);
+            camera.zoom = zoom_new;
         }
     }
 

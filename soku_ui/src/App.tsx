@@ -179,8 +179,11 @@ function App() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      client.zoomCamera(delta);
+      client.zoomCamera(delta, x, y);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
