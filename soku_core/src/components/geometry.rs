@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Shape {
     Rectangle { width: f32, height: f32 },
-    Circle { radius: f32 },
+    Ellipse { radius_x: f32, radius_y: f32 },
     Triangle { base: f32, height: f32 },
-    Polygon { sides: u32, radius: f32 },
+    Polygon { sides: u32, radius_x: f32, radius_y: f32 },
     Path { points: Vec<(f32, f32)> },
 }
 
@@ -18,3 +18,9 @@ pub struct Renderable {
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct ZIndex(pub f32);
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct SpatialMetadata {
+    pub min: [f32; 2],
+    pub max: [f32; 2],
+}

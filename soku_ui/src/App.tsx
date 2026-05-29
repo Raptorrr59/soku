@@ -64,17 +64,23 @@ function App() {
           // 1. Group by Style
           const groups = new Map<number, number[]>();
 
-          for (let i = 0; i < renderData.length; i += 6) {
+          for (let i = 0; i < renderData.length; i += 9) {
             const typeVal = renderData[i + 1];
+            const colorIdx = Math.floor(renderData[i + 6]);
+            const flags = Math.floor(renderData[i + 7]);
+            const rotation = renderData[i + 8];
             
             const type = Math.floor(typeVal);
-            const isHovered = (typeVal % 1.0) >= 0.09 && (typeVal % 1.0) < 0.15;
-            const isSelected = (typeVal % 1.0) >= 0.19;
-            const colorIdx = Math.floor((typeVal % 0.1) * 100.5);
+            const isHovered = (flags & 1) !== 0;
+            const isSelected = (flags & 2) !== 0;
 
             if (isSelected) anySelected = true;
 
-            const styleKey = type | (colorIdx << 4) | (isSelected ? 256 : 0) | (isHovered ? 512 : 0);
+            // Key: type | colorIdx << 4 | isSelected << 8 | isHovered << 9 | rotationHash << 10 | sidesHash << 24
+            // Since rotation is float, we hash it simply
+            const rotationHash = Math.floor(rotation * 1000);
+            const sidesHash = Math.round((typeVal % 1.0) * 100);
+            const styleKey = type | (colorIdx << 4) | (isSelected ? 256 : 0) | (isHovered ? 512 : 0) | (rotationHash << 10) | (sidesHash << 24);
             
             let group = groups.get(styleKey);
             if (!group) {
@@ -92,10 +98,17 @@ function App() {
             const colorIdx = (styleKey >> 4) & 0xF;
             const isSelected = (styleKey & 256) !== 0;
             const isHovered = (styleKey & 512) !== 0;
+            const rotation = renderData[indices[0] + 8];
 
-            ctx.fillStyle = colors[colorIdx];
-            ctx.strokeStyle = isSelected ? '#ffffff' : (isHovered ? '#94a3b8' : '#475569');
-            ctx.lineWidth = isSelected ? 5 : (isHovered ? 3 : 1.5);
+            if (type === 5) { // Handle style
+              ctx.fillStyle = '#ffffff';
+              ctx.strokeStyle = '#3b82f6';
+              ctx.lineWidth = 2;
+            } else {
+              ctx.fillStyle = colors[colorIdx] || '#3b82f6';
+              ctx.strokeStyle = isSelected ? '#ffffff' : (isHovered ? '#94a3b8' : '#475569');
+              ctx.lineWidth = isSelected ? 5 : (isHovered ? 3 : 1.5);
+            }
 
             ctx.beginPath();
             
@@ -105,32 +118,45 @@ function App() {
               const w_r = renderData[i + 4];
               const h_pad = renderData[i + 5];
 
+              ctx.save();
+              ctx.translate(x, y);
+              if (rotation !== 0) ctx.rotate(rotation);
+
               if (type === 1) { // Rectangle
-                ctx.rect(x, y, w_r, h_pad);
-              } else if (type === 2) { // Circle
-                ctx.moveTo(x + w_r, y);
-                ctx.arc(x, y, w_r, 0, 2 * Math.PI);
+                ctx.rect(-w_r / 2, -h_pad / 2, w_r, h_pad);
+              } else if (type === 2) { // Ellipse
+                ctx.ellipse(0, 0, w_r, h_pad, 0, 0, 2 * Math.PI);
               } else if (type === 3) { // Triangle
-                ctx.moveTo(x, y - h_pad / 2);
-                ctx.lineTo(x - w_r / 2, y + h_pad / 2);
-                ctx.lineTo(x + w_r / 2, y + h_pad / 2);
-                ctx.lineTo(x, y - h_pad / 2);
+                ctx.moveTo(0, -h_pad / 2);
+                ctx.lineTo(-w_r / 2, h_pad / 2);
+                ctx.lineTo(w_r / 2, h_pad / 2);
+                ctx.closePath();
               } else if (type === 4) { // Polygon
-                const sides = Math.floor(h_pad);
-                const radius = w_r;
+                const sides = Math.round((renderData[i + 1] % 1.0) * 100);
+                const rx = w_r;
+                const ry = h_pad;
                 for (let j = 0; j < sides; j++) {
                   const angle = (j / sides) * 2 * Math.PI - Math.PI / 2;
-                  const px = x + radius * Math.cos(angle);
-                  const py = y + radius * Math.sin(angle);
+                  const px = rx * Math.cos(angle);
+                  const py = ry * Math.sin(angle);
                   if (j === 0) ctx.moveTo(px, py);
                   else ctx.lineTo(px, py);
                 }
                 ctx.closePath();
+              } else if (type === 5) { // Handle
+                const subType = renderData[i + 6];
+                if (subType === 5) { // Rotation handle
+                  ctx.moveTo(w_r / 2, 0);
+                  ctx.arc(0, 0, w_r / 2, 0, 2 * Math.PI);
+                } else {
+                  ctx.rect(-w_r / 2, -h_pad / 2, w_r, h_pad);
+                }
               }
+              ctx.restore();
             }
             
             ctx.fill();
-            if (!skipStrokes || isSelected || isHovered) {
+            if (type === 5 || !skipStrokes || isSelected || isHovered) {
               ctx.stroke();
             }
           }
