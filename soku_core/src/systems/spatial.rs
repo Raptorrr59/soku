@@ -187,6 +187,6 @@ impl SpatialIndex {
 
     pub fn query_aabb(&self, min_x: f32, min_y: f32, max_x: f32, max_y: f32) -> impl Iterator<Item = &SpatialObject> {
         let envelope = AABB::from_corners([min_x, min_y], [max_x, max_y]);
-        self.tree.locate_in_envelope(&envelope)
+        self.tree.locate_in_envelope_intersecting(&envelope)
     }
 }
